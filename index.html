@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVL Tree Visualizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #eef2fb;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Header ───────────────────────────────────────────── */
+  header {
+    background: linear-gradient(135deg, #2851a3 0%, #4a90d9 100%);
+    color: #fff;
+    padding: 10px 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .4px; }
+  header p  { font-size: .82rem; opacity: .82; }
+
+  /* ── Canvas area ──────────────────────────────────────── */
+  #wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ── Control bar ──────────────────────────────────────── */
+  #bar {
+    background: #fff;
+    border-top: 1px solid #d4dcf0;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  #bar label { font-size: .88rem; color: #444; white-space: nowrap; }
+
+  #valueInput {
+    width: 86px;
+    padding: 6px 10px;
+    font-size: 1rem;
+    border: 1.5px solid #aac4e8;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  #valueInput:focus { border-color: #4a90d9; }
+
+  button {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: .88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+    color: #fff;
+    white-space: nowrap;
+  }
+  button:hover  { filter: brightness(1.08); }
+  button:active { transform: scale(.97); }
+
+  #btnInsert { background: #3aad6e; }
+  #btnDelete { background: #d94f4f; }
+  #btnClear  { background: #7a7a8e; }
+  #btnRandom { background: #4a7fd4; }
+
+  #status {
+    flex: 1;
+    min-width: 180px;
+    font-size: .83rem;
+    color: #3a4a80;
+    font-style: italic;
+  }
+
+  /* ── Legend ───────────────────────────────────────────── */
+  #legend {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: .76rem;
+    color: #666;
+    flex-shrink: 0;
+  }
+  .li { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AVL Tree Visualizer</h1>
+  <p>CS2 Final Project — Self-Balancing Binary Search Tree</p>
+</header>
+
+<div id="wrap"><canvas id="c"></canvas></div>
+
+<div id="bar">
+  <label for="valueInput">Value:</label>
+  <input type="number" id="valueInput" placeholder="e.g. 42">
+  <button id="btnInsert">Insert</button>
+  <button id="btnDelete">Delete</button>
+  <button id="btnClear">Clear</button>
+  <button id="btnRandom">Random Fill</button>
+  <div id="status">Enter a number and press Insert.</div>
+  <div id="legend">
+    <div class="li"><div class="dot" style="background:#add8e6;border:1.5px solid #4682b4"></div>Node</div>
+    <div class="li"><div class="dot" style="background:#3aad6e"></div>Inserted</div>
+    <div class="li" style="color:#008800">bf=0 balanced</div>
+    <div class="li" style="color:#c85000">bf≠0 unbalanced</div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  AVL TREE — data structure
+// ════════════════════════════════════════════════════════════
+
+class AVLNode {
+  constructor(key) { this.key = key; this.height = 1; this.left = this.right = null; }
+}
+
+class AVLTree {
+  constructor() { this.root = null; this.lastRotation = 'none'; }
+
+  h(n)    { return n ? n.height : 0; }
+  bf(n)   { return n ? this.h(n.left) - this.h(n.right) : 0; }
+  upd(n)  { n.height = 1 + Math.max(this.h(n.left), this.h(n.right)); }
+
+  rotL(z) { const y=z.right,T=y.left; y.left=z; z.right=T; this.upd(z); this.upd(y); return y; }
+  rotR(z) { const y=z.left, T=y.right; y.right=z; z.left=T; this.upd(z); this.upd(y); return y; }
+
+  bal(n) {
+    this.upd(n);
+    const b = this.bf(n);
+    if (b > 1) {
+      if (this.bf(n.left) >= 0)  { this.lastRotation = 'Right rotation (LL)';       return this.rotR(n); }
+      this.lastRotation = 'Left-Right rotation (LR)'; n.left  = this.rotL(n.left);  return this.rotR(n);
+    }
+    if (b < -1) {
+      if (this.bf(n.right) <= 0) { this.lastRotation = 'Left rotation (RR)';        return this.rotL(n); }
+      this.lastRotation = 'Right-Left rotation (RL)'; n.right = this.rotR(n.right); return this.rotL(n);
+    }
+    return n;
+  }
+
+  _ins(n, k) {
+    if (!n) return new AVLNode(k);
+    if (k < n.key) n.left  = this._ins(n.left,  k);
+    else if (k > n.key) n.right = this._ins(n.right, k);
+    else return n;
+    return this.bal(n);
+  }
+
+  _min(n) { while (n.left) n = n.left; return n; }
+
+  _del(n, k) {
+    if (!n) return null;
+    if (k < n.key)      n.left  = this._del(n.left,  k);
+    else if (k > n.key) n.right = this._del(n.right, k);
+    else {
+      if (!n.left || !n.right) return n.left || n.right;
+      const s = this._min(n.right); n.key = s.key; n.right = this._del(n.right, s.key);
+    }
+    return this.bal(n);
+  }
+
+  insert(k)   { this.lastRotation = 'none'; this.root = this._ins(this.root, k); }
+  delete(k)   { this.lastRotation = 'none'; this.root = this._del(this.root, k); }
+  contains(k) { let n=this.root; while(n){ if(k===n.key)return true; n=k<n.key?n.left:n.right; } return false; }
+  clear()     { this.root = null; }
+  size(n=this.root) { return n ? 1+this.size(n.left)+this.size(n.right) : 0; }
+}
+
+// ════════════════════════════════════════════════════════════
+//  VISUALIZER — canvas + animation
+// ════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const $stat  = document.getElementById('status');
+const $inp   = document.getElementById('valueInput');
+
+const tree = new AVLTree();
+
+const R    = 22;   // node radius  (px)
+const HSP  = 58;   // horizontal spacing between in-order nodes
+const VGAP = 78;   // vertical spacing between levels
+const TOPD = 52;   // top margin
+
+// Animated positions: Map<key, {x,y}>
+const curPos = new Map();
+const tgtPos = new Map();
+
+let hlKey   = -1;          // highlighted node key
+let hlAlpha = 0;           // fade-out value [0,1]
+let hlRGB   = [50,205,50]; // highlight colour
+
+let rafId    = null;       // rAF handle (null = idle)
+
+// ── Layout ───────────────────────────────────────────────────
+
+function countNodes(n) { return n ? 1 + countNodes(n.left) + countNodes(n.right) : 0; }
+
+function recomputeTargets() {
+  tgtPos.clear();
+  const n = countNodes(tree.root);
+  if (!n) return;
+  const startX = Math.max((canvas.width - (n - 1) * HSP) / 2, R + 10);
+  const idx = [0];
+  placeNodes(tree.root, 0, idx, startX);
+}
+
+function placeNodes(node, depth, idx, startX) {
+  if (!node) return;
+  placeNodes(node.left,  depth + 1, idx, startX);
+  tgtPos.set(node.key, { x: startX + idx[0]++ * HSP, y: TOPD + depth * VGAP });
+  placeNodes(node.right, depth + 1, idx, startX);
+}
+
+// ── Animation ────────────────────────────────────────────────
+
+function startAnim() { if (!rafId) rafId = requestAnimationFrame(tick); }
+
+function tick() {
+  let busy = false;
+
+  // Lerp current positions toward targets
+  for (const [key, tgt] of tgtPos) {
+    if (!curPos.has(key)) { curPos.set(key, { x: tgt.x, y: tgt.y }); continue; }
+    const cur = curPos.get(key);
+    const dx = tgt.x - cur.x, dy = tgt.y - cur.y;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      cur.x += dx * 0.18; cur.y += dy * 0.18; busy = true;
+    } else { cur.x = tgt.x; cur.y = tgt.y; }
+  }
+  // Drop positions for nodes that no longer exist
+  for (const key of curPos.keys()) { if (!tgtPos.has(key)) curPos.delete(key); }
+
+  // Fade highlight
+  if (hlAlpha > 0) { hlAlpha -= 0.018; if (hlAlpha < 0) hlAlpha = 0; busy = true; }
+
+  draw();
+  rafId = busy ? requestAnimationFrame(tick) : null;
+}
+
+// ── Drawing ──────────────────────────────────────────────────
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!tree.root) {
+    ctx.fillStyle = '#b0b8d8';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Insert a number to begin.', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  drawEdges(tree.root);
+  drawNodes(tree.root);
+}
+
+function drawEdges(node) {
+  if (!node) return;
+  const p = curPos.get(node.key);
+  if (!p) return;
+  ctx.strokeStyle = '#a0a8c8';
+  ctx.lineWidth   = 1.8;
+  const drawLine = (child) => {
+    if (!child) return;
+    const q = curPos.get(child.key);
+    if (q) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+  };
+  drawLine(node.left);
+  drawLine(node.right);
+  drawEdges(node.left);
+  drawEdges(node.right);
+}
+
+function drawNodes(node) {
+  if (!node) return;
+  drawNodes(node.left);
+  drawNodes(node.right);
+  drawNode(node);
+}
+
+function drawNode(node) {
+  const p = curPos.get(node.key);
+  if (!p) return;
+  const { x, y } = p;
+
+  // Fill — lerp from highlight colour to base light-blue
+  let fill = '#add8e6';
+  if (node.key === hlKey && hlAlpha > 0) {
+    const t  = Math.min(1, hlAlpha);
+    const [hr, hg, hb] = hlRGB;
+    fill = `rgb(${lp(hr,173,t)|0},${lp(hg,216,t)|0},${lp(hb,230,t)|0})`;
+  }
+
+  // Circle
+  ctx.beginPath();
+  ctx.arc(x, y, R, 0, Math.PI * 2);
+  ctx.fillStyle   = fill;
+  ctx.fill();
+  ctx.strokeStyle = '#4682b4';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  // Key label (centred)
+  ctx.fillStyle    = '#111';
+  ctx.font         = 'bold 14px sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(node.key), x, y);
+
+  // Balance-factor label (below circle)
+  const bf = (node.left ? node.left.height : 0) - (node.right ? node.right.height : 0);
+  ctx.font      = '10px sans-serif';
+  ctx.fillStyle = bf === 0 ? '#008800' : '#c85000';
+  ctx.fillText('bf=' + bf, x, y + R + 9);
+}
+
+const lp = (a, b, t) => a * t + b * (1 - t);   // linear interpolate
+
+// ── Canvas resize ─────────────────────────────────────────────
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  recomputeTargets();
+}
+
+window.addEventListener('resize', () => { resizeCanvas(); startAnim(); });
+
+// ════════════════════════════════════════════════════════════
+//  CONTROL HANDLERS
+// ════════════════════════════════════════════════════════════
+
+function setStatus(msg) { $stat.textContent = msg; }
+function treeH()        { return tree.root ? tree.root.height : 0; }
+
+function doInsert() {
+  const val = parseInt($inp.value, 10);
+  if (isNaN(val))           { setStatus('Please enter a valid integer.'); return; }
+  if (tree.contains(val))   { setStatus(`Key ${val} already exists.`); return; }
+
+  tree.insert(val);
+  recomputeTargets();
+  // New node appears in its final position (other nodes slide)
+  if (!curPos.has(val)) { const t = tgtPos.get(val); if (t) curPos.set(val, { ...t }); }
+
+  hlKey   = val;
+  hlAlpha = 1;
+  hlRGB   = [50, 205, 50];
+
+  const rot = tree.lastRotation;
+  setStatus(`Inserted ${val}${rot !== 'none' ? '  →  ' + rot : ''}.   Height: ${treeH()}`);
+  startAnim();
+  $inp.select();
+}
+
+function doDelete() {
+  const val = parseInt($inp.value, 10);
+  if (isNaN(val))          { setStatus('Please enter a valid integer.'); return; }
+  if (!tree.contains(val)) { setStatus(`Key ${val} is not in the tree.`); return; }
+
+  curPos.delete(val);      // node disappears immediately
+  tree.delete(val);
+  recomputeTargets();
+  hlKey = -1;
+
+  const rot = tree.lastRotation;
+  setStatus(`Deleted ${val}${rot !== 'none' ? '  →  ' + rot : ''}.   Height: ${treeH()}`);
+  startAnim();
+  $inp.select();
+}
+
+function doClear() {
+  tree.clear();
+  curPos.clear();
+  tgtPos.clear();
+  hlKey   = -1;
+  hlAlpha = 0;
+  setStatus('Tree cleared.');
+  draw();
+}
+
+function doRandom() {
+  let added = 0;
+  while (added < 8) {
+    const k = Math.floor(Math.random() * 99) + 1;
+    if (!tree.contains(k)) { tree.insert(k); added++; }
+  }
+  curPos.clear();
+  recomputeTargets();
+  for (const [k, pos] of tgtPos) curPos.set(k, { ...pos });  // snap, no animation
+  setStatus(`Inserted 8 random values.   Height: ${treeH()}`);
+  draw();
+}
+
+// ── Wire up ──────────────────────────────────────────────────
+
+document.getElementById('btnInsert').addEventListener('click', doInsert);
+document.getElementById('btnDelete').addEventListener('click', doDelete);
+document.getElementById('btnClear' ).addEventListener('click', doClear);
+document.getElementById('btnRandom').addEventListener('click', doRandom);
+$inp.addEventListener('keydown', e => { if (e.key === 'Enter') doInsert(); });
+
+// ── Boot ─────────────────────────────────────────────────────
+
+resizeCanvas();
+draw();
+</script>
+</body>
+</html>
