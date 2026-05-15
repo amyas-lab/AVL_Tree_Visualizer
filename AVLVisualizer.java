@@ -11,6 +11,7 @@ public class AVLVisualizer {
     private TreePanel  treePanel; // Custom JPanel to draw the tree
     private JLabel     statusLabel; // To notify user of what is going on
     private JTextField inputField; // To input numbers
+    private JLabel     zoomLabel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new AVLVisualizer()::launch);
@@ -34,10 +35,23 @@ public class AVLVisualizer {
         JButton btnClear  = btn("Clear",       e -> handleClear());
         JButton btnRandom = btn("Random Fill", e -> handleRandom());
 
-        styleButton(btnInsert, new Color(60, 160, 60),  Color.WHITE);
-        styleButton(btnDelete, new Color(200, 70, 60),  Color.WHITE);
+        styleButton(btnInsert, new Color(60, 160, 60),   Color.WHITE);
+        styleButton(btnDelete, new Color(200, 70, 60),   Color.WHITE);
         styleButton(btnClear,  new Color(120, 120, 140), Color.WHITE);
-        styleButton(btnRandom, new Color(70, 130, 180), Color.WHITE);
+        styleButton(btnRandom, new Color(70, 130, 180),  Color.WHITE);
+
+        // ── Zoom controls ────────────────────────────────────────────────────
+        JButton btnZoomOut   = btn("-",   e -> treePanel.setZoom(treePanel.getZoom() - TreePanel.ZOOM_STEP));
+        JButton btnZoomIn    = btn("+",   e -> treePanel.setZoom(treePanel.getZoom() + TreePanel.ZOOM_STEP));
+        JButton btnZoomReset = btn("1:1", e -> treePanel.setZoom(1.0));
+        zoomLabel = new JLabel("100%");
+        zoomLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        zoomLabel.setForeground(new Color(80, 80, 120));
+        zoomLabel.setToolTipText("Ctrl + scroll to zoom");
+
+        styleButton(btnZoomOut,   new Color(90, 90, 130), Color.WHITE);
+        styleButton(btnZoomIn,    new Color(90, 90, 130), Color.WHITE);
+        styleButton(btnZoomReset, new Color(90, 90, 130), Color.WHITE);
 
         // ── Status label ─────────────────────────────────────────────────────
         statusLabel = new JLabel("Enter a number and press Insert.");
@@ -57,6 +71,12 @@ public class AVLVisualizer {
         south.add(btnClear);
         south.add(btnRandom);
         south.add(Box.createHorizontalStrut(16));
+        south.add(new JLabel("Zoom:"));
+        south.add(btnZoomOut);
+        south.add(zoomLabel);
+        south.add(btnZoomIn);
+        south.add(btnZoomReset);
+        south.add(Box.createHorizontalStrut(16));
         south.add(statusLabel);
 
         // ── Title bar ────────────────────────────────────────────────────────
@@ -75,6 +95,7 @@ public class AVLVisualizer {
         frame.add(south, BorderLayout.SOUTH);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+        treePanel.setOnZoomChange(this::updateZoomLabel);
     }
 
     // ── Event handlers ───────────────────────────────────────────────────────
@@ -131,6 +152,10 @@ public class AVLVisualizer {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void status(String msg) { statusLabel.setText(msg); }
+
+    private void updateZoomLabel() {
+        zoomLabel.setText((int) Math.round(treePanel.getZoom() * 100) + "%");
+    }
 
     private int treeHeight() {
         Node r = tree.getRoot();

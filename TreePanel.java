@@ -12,6 +12,13 @@ public class TreePanel extends JPanel {
     private static final int V_GAP   = 78;   // vertical gap between tree levels
     private static final int TOP     = 52;   // top margin
 
+    private static final double ZOOM_MIN  = 0.3;
+    private static final double ZOOM_MAX  = 2.5;
+    static final double         ZOOM_STEP = 0.15;
+
+    private double   zoom         = 1.0;
+    private Runnable onZoomChange = null;
+
     private final AVLTree tree;
 
     // Animated positions: key → [x, y].  curPos lerps toward tgtPos each tick.
@@ -27,13 +34,20 @@ public class TreePanel extends JPanel {
     public TreePanel(AVLTree tree) {
         this.tree = tree;
         setBackground(new Color(245, 245, 252));
+        addMouseWheelListener(e -> {
+            if (e.isControlDown()) {
+                setZoom(zoom + (e.getWheelRotation() < 0 ? ZOOM_STEP : -ZOOM_STEP));
+                e.consume();
+            }
+        });
     }
 
     @Override
     public Dimension getPreferredSize() {
         int n = countNodes(tree.getRoot());
-        return new Dimension(Math.max(800, n * SPACING + 120),
-                             Math.max(500, (tree.getRoot() == null ? 1 : tree.getRoot().height) * V_GAP + TOP + 60));
+        int w = (int)(Math.max(800, n * SPACING + 120) * zoom);
+        int h = (int)(Math.max(500, (tree.getRoot() == null ? 1 : tree.getRoot().height) * V_GAP + TOP + 60) * zoom);
+        return new Dimension(w, h);
     }
 
     // Called by AVLVisualizer AFTER tree.insert(key)
@@ -104,11 +118,12 @@ public class TreePanel extends JPanel {
     private void recomputeTargets() {
         tgtPos.clear();
         int n = countNodes(tree.getRoot());
-        if (n == 0) return;
-        int w      = Math.max(Math.max(getWidth(), 800), (n + 1) * SPACING);
-        int startX = (w - (n - 1) * SPACING) / 2;
+        if (n == 0) { revalidate(); return; }
+        int logW   = (int) Math.max(Math.max(getWidth() / zoom, 800), (n + 1) * SPACING);
+        int startX = (logW - (n - 1) * SPACING) / 2;
         int[] idx  = {0};
         placeNodes(tree.getRoot(), 0, idx, startX);
+        revalidate();
     }
 
     // In-Order Traversal and incrementing index idx[0]++ during inorder walk to ensure the smallest keys
@@ -132,6 +147,7 @@ public class TreePanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,      RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.scale(zoom, zoom);
         drawEdges(g2, tree.getRoot());
         drawNodes(g2, tree.getRoot());
     }
@@ -194,6 +210,20 @@ public class TreePanel extends JPanel {
         FontMetrics sfm = g2.getFontMetrics();
         g2.drawString(bfStr, cx - sfm.stringWidth(bfStr)/2, cy + R + 13);
     }
+
+    // ── Zoom ─────────────────────────────────────────────────────────────────
+
+    public void setZoom(double z) {
+        zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+        recomputeTargets();
+        revalidate();
+        repaint();
+        if (onZoomChange != null) onZoomChange.run();
+    }
+
+    public double getZoom() { return zoom; }
+
+    public void setOnZoomChange(Runnable r) { onZoomChange = r; }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
