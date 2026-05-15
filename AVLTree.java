@@ -25,6 +25,7 @@ public class AVLTree {
     // Public API
 
     public Node   getRoot()          { return root; }
+    // To display the balance factor and the operation on the GUI
     public String getLastRotation()  { return lastRotation; }
 
     public void insert(int key) { lastRotation = "none"; root = insertRec(root, key); }
@@ -55,33 +56,42 @@ public class AVLTree {
     // Rotations
     // Left rotation — fixes RR imbalance
 
-    private Node rotateLeft(Node z) {
-        Node y  = z.right;
-        Node T2 = y.left;
-
-        y.left  = z;
-        z.right = T2;
-
-        updateHeight(z);  // update z first because it is now lower than y
-        updateHeight(y);
-
-        return y;  // y is the new root of this subtree
-    }
-
+   
     // Right rotation — fixes LL imbalance
-  
-    private Node rotateRight(Node z) {
-        Node y  = z.left;
-        Node T3 = y.right;
+    
+    private Node rotateLeft(Node oldTop) {
+        // 1. The oldTop.right becomes the newTop
+        Node newTop = oldTop.right;
 
-        y.right = z;
-        z.left  = T3;
+        // 2.The left subtree of newTop becomes the right subtree of oldTop
+        Node orphanSubtree = newTop.left;
 
-        updateHeight(z);
-        updateHeight(y);
+        // 3. The oldTop becomes the left subtree of newTop
+        newTop.left = oldTop;
 
-        return y;
+        // 4. The orphan subtree becomes the right subtree of oldTop
+        oldTop.right = orphanSubtree;
+
+        // 5. After rotations, heights of the affected nodes change.
+        // You must recompute the heights of the affected nodes (oldTop and newTop) in the correct order
+        // We update oldTop first, because it's now lower in the tree than newTop
+        updateHeight(oldTop);
+        updateHeight(newTop);
+        
+        // 6. Return the new top of the subtree
+        return newTop;
     }
+
+    private Node rotateRight(Node oldTop) {
+        Node newTop = oldTop.left;
+        Node orphanSubtree = newTop.right;
+        newTop.right = oldTop;
+        oldTop.left = orphanSubtree;
+        updateHeight(oldTop);
+        updateHeight(newTop);
+        return newTop;
+    }
+
 
     // Left-Right rotation — fixes LR imbalance
     // Step 1: rotate left  on the left child  → becomes LL

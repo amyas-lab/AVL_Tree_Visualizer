@@ -7,16 +7,16 @@ import java.util.Random;
 
 public class AVLVisualizer {
 
-    private final AVLTree tree = new AVLTree();
-    private TreePanel  treePanel;
-    private JLabel     statusLabel;
-    private JTextField inputField;
+    private final AVLTree tree = new AVLTree(); // Implements AVL tree logic
+    private TreePanel  treePanel; // Custom JPanel to draw the tree
+    private JLabel     statusLabel; // To notify user of what is going on
+    private JTextField inputField; // To input numbers
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new AVLVisualizer()::launch);
     }
 
-    private void launch() {
+    private void launch() { // Create the main frame and add all components to it
         JFrame frame = new JFrame("AVL Tree Visualizer");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 680);
@@ -85,11 +85,11 @@ public class AVLVisualizer {
             int key = Integer.parseInt(text);
             if (tree.contains(key)) { status("Key " + key + " already exists in the tree."); return; }
             tree.insert(key);
-            treePanel.onInsert(key);
-            String rot = tree.getLastRotation();
+            treePanel.onInsert(key); // From the TreePanel class, tells panel to animate the new node
+            String rot = tree.getLastRotation(); // Gets the last rotation type from the AVLTree class
             status("Inserted " + key + (rot.equals("none") ? "." : "  →  " + rot + ".")
                    + "   Tree height: " + treeHeight());
-            inputField.selectAll();
+            inputField.selectAll(); 
         } catch (NumberFormatException ex) {
             status("Invalid input — please enter an integer.");
         }

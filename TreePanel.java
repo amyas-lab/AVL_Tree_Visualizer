@@ -73,7 +73,8 @@ public class TreePanel extends JPanel {
     }
 
     // ── Animation ────────────────────────────────────────────────────────────
-
+    // Instead of jumping to the target, the node moves by a fract 0.18 of the distance toward it
+        // This creates a sliding effect
     private void tick() {
         boolean busy = false;
 
@@ -84,8 +85,8 @@ public class TreePanel extends JPanel {
             if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
                 cur[0] += dx * 0.18;
                 cur[1] += dy * 0.18;
-                busy = true;
-            } else { cur[0] = tgt[0]; cur[1] = tgt[1]; }
+                busy = true; // Sill in motion, not stop yet
+            } else { cur[0] = tgt[0]; cur[1] = tgt[1]; } // If the distance difference is < 0.5, set it to the target right away
         }
         curPos.keySet().retainAll(tgtPos.keySet());
 
@@ -93,7 +94,7 @@ public class TreePanel extends JPanel {
         if (highlightAlpha < 0)   highlightAlpha = 0;
 
         repaint();
-        if (!busy) animTimer.stop();
+        if (!busy) animTimer.stop(); // Stop the timer if nothing is moving
     }
 
     private void startAnim() { if (!animTimer.isRunning()) animTimer.start(); }
@@ -110,6 +111,8 @@ public class TreePanel extends JPanel {
         placeNodes(tree.getRoot(), 0, idx, startX);
     }
 
+    // In-Order Traversal and incrementing index idx[0]++ during inorder walk to ensure the smallest keys
+    // are assigned the leftmost X-coordinates, and the largest keys the rightmost
     private void placeNodes(Node node, int depth, int[] idx, int startX) {
         if (node == null) return;
         placeNodes(node.left,  depth + 1, idx, startX);
